@@ -115,27 +115,31 @@ function listBottleTypes(req, res) {
 
 function updateAvailability(req, res) {
   const { id } = req.params;
-  const { available, price } = req.body;
-
-  if (available === undefined) {
-    return res.status(400).json({ message: 'Disponibilidade obrigatória.' });
-  }
 
   const agency = db.agencies.find((item) => item.id === Number(id));
   if (!agency) return res.status(404).json({ message: 'Agência não encontrada.' });
-  const bottleId = Number(req.body.bottleId);
-  if (!db.bottles.some((bottle) => bottle.id === bottleId)) {
-    return res.status(400).json({ message: 'Tipo de botija inválido.' });
+
+  const updates = Array.isArray(req.body.items) ? req.body.items : [req.body];
+  if (!updates.length || updates.some((item) => item.available === undefined)) {
+    return res.status(400).json({ message: 'Disponibilidade obrigatória.' });
   }
 
-  let record = db.availability.find((item) => item.agency_id === agency.id && item.bottle_id === bottleId);
-  if (!record) {
-    record = { id: Date.now(), agency_id: agency.id, bottle_id: bottleId, available: 0, price: 0 };
-    db.availability.push(record);
+  for (const item of updates) {
+    const bottleId = Number(item.bottleId);
+    const price = Number(item.price);
+    if (![1, 2].includes(bottleId) || !Number.isFinite(price) || price < 0) {
+      return res.status(400).json({ message: 'Tipo de botija ou preço inválido.' });
+    }
+
+    let record = db.availability.find((entry) => entry.agency_id === agency.id && entry.bottle_id === bottleId);
+    if (!record) {
+      record = { id: Date.now() + bottleId, agency_id: agency.id, bottle_id: bottleId, available: 0, price: 0 };
+      db.availability.push(record);
+    }
+    record.available = Boolean(item.available) ? 1 : 0;
+    record.price = price;
+    record.updated_at = new Date().toISOString();
   }
-  record.available = Boolean(available) ? 1 : 0;
-  record.price = price === undefined ? record.price || 0 : Number(price);
-  record.updated_at = new Date().toISOString();
   saveDatabase();
 
   return res.json({ message: 'Disponibilidade atualizada com sucesso.', updated: true });

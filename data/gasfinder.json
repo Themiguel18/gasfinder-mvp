@@ -49,8 +49,8 @@
       "address": "Bairro Central, Luanda",
       "latitude": -8.84,
       "longitude": 13.23,
-      "status": "active",
-      "verified": 1,
+      "status": "suspended",
+      "verified": 0,
       "created_at": "2026-09-08T08:06:52.914Z"
     },
     {
@@ -67,7 +67,7 @@
       "status": "active",
       "verified": 1,
       "created_at": "2026-09-08T08:21:52.839Z",
-      "updated_at": "2026-09-08T08:22:44.678Z"
+      "updated_at": "2026-09-08T08:55:39.750Z"
     }
   ],
   "schedules": [
@@ -110,6 +110,22 @@
       "available": 1,
       "price": 15000,
       "updated_at": "2026-09-08T07:56:52.933Z"
+    },
+    {
+      "id": 1788857803586,
+      "agency_id": 1788855712839,
+      "bottle_id": 1,
+      "available": 1,
+      "price": 4.5,
+      "updated_at": "2026-09-08T09:03:15.871Z"
+    },
+    {
+      "id": 1788857803587,
+      "agency_id": 1788855712839,
+      "bottle_id": 2,
+      "available": 1,
+      "price": 3000,
+      "updated_at": "2026-09-08T09:03:15.871Z"
     }
   ],
   "settings": {

@@ -428,26 +428,48 @@ async function renderAgencyDashboard() {
     content.innerHTML = `
       <h3>${agency.name}</h3>
       <p>${agency.address} · ${agency.phone} · ${agency.hours || 'Horário não informado'}</p>
-      <div class="form-grid"><input id="agencyPhone" placeholder="Telefone" value="${agency.phone || ''}" /><input id="agencyAddress" placeholder="Endereço" value="${agency.address || ''}" /><input id="agencyHours" placeholder="Horário" value="${agency.hours || ''}" /><button class="secondary-btn" id="updateAgencyProfileBtn">Atualizar dados</button></div>
-      <h3>Disponibilidade e preços</h3>
-      <div class="inventory">
-        ${agency.availability.map((item) => `
-          <div class="inventory-item"><span>${dbBottleName(item.bottle_id)}</span><span><select data-available="${item.bottle_id}"><option value="1" ${Number(item.available) === 1 ? 'selected' : ''}>Disponível</option><option value="0" ${Number(item.available) === 0 ? 'selected' : ''}>Indisponível</option></select><input data-price="${item.bottle_id}" type="number" value="${item.price || 0}" min="0" /> Kz</span></div>
-        `).join('')}
+      <div class="form-grid"><input id="agencyPhone" placeholder="Telefone" value="${agency.phone || ''}" /><input id="agencyAddress" placeholder="Endereço" value="${agency.address || ''}" /><input id="agencyHours" placeholder="Horário" value="${agency.hours || ''}" /><button class="secondary-btn" id="updateAgencyProfileBtn">Salvar dados da agência</button></div>
+      <div class="availability-editor">
+        <button class="primary-btn" id="updateAvailabilityBtn" type="button">Atualizar dados</button>
+        <div class="availability-form hidden" id="availabilityForm">
+          <h3>Atualizar disponibilidade</h3>
+          ${[1, 2].map((bottleId) => {
+            const item = agency.availability.find((entry) => Number(entry.bottle_id) === bottleId) || { available: 0, price: 0 };
+            return `<fieldset class="availability-fieldset"><legend>${dbBottleName(bottleId)}</legend><label><input type="radio" name="available-${bottleId}" value="1" ${Number(item.available) === 1 ? 'checked' : ''}> Disponível</label><label><input type="radio" name="available-${bottleId}" value="0" ${Number(item.available) !== 1 ? 'checked' : ''}> Indisponível</label><label class="price-field">Preço: <input data-price="${bottleId}" type="number" value="${item.price || 0}" min="0" step="1" required> Kz</label></fieldset>`;
+          }).join('')}
+          <button class="secondary-btn" id="saveAvailabilityBtn" type="button">Salvar alterações</button>
+        </div>
       </div>
-      <button class="primary-btn" id="updateAvailabilityBtn">Atualizar informações</button>
     `;
 
     document.getElementById('updateAgencyProfileBtn').addEventListener('click', async () => {
       await apiRequest(`/agencias/${agency.id}/profile`, { method: 'PUT', headers: { Authorization: `Bearer ${state.agencyToken}` }, body: JSON.stringify({ phone: document.getElementById('agencyPhone').value, address: document.getElementById('agencyAddress').value, hours: document.getElementById('agencyHours').value }) });
       renderAgencyDashboard();
     });
-    document.getElementById('updateAvailabilityBtn').addEventListener('click', async () => {
-      for (const select of content.querySelectorAll('[data-available]')) {
-        const bottleId = Number(select.dataset.available);
-        await apiRequest(`/agencias/${agency.id}/availability`, { method: 'PUT', headers: { Authorization: `Bearer ${state.agencyToken}` }, body: JSON.stringify({ bottleId, available: select.value === '1', price: Number(content.querySelector(`[data-price="${bottleId}"]`).value) }) });
+    document.getElementById('updateAvailabilityBtn').addEventListener('click', () => {
+      const form = document.getElementById('availabilityForm');
+      form.classList.toggle('hidden');
+    });
+    document.getElementById('saveAvailabilityBtn').addEventListener('click', async () => {
+      const items = [1, 2].map((bottleId) => ({
+        bottleId,
+        available: content.querySelector(`input[name="available-${bottleId}"]:checked`).value === '1',
+        price: Number(content.querySelector(`[data-price="${bottleId}"]`).value)
+      }));
+      if (items.some((item) => !Number.isFinite(item.price) || item.price < 0)) {
+        alert('Informe preços válidos para as duas botijas.');
+        return;
       }
-      alert('Informações atualizadas.'); renderAgencyDashboard();
+      const saveButton = document.getElementById('saveAvailabilityBtn');
+      saveButton.disabled = true;
+      try {
+        await apiRequest(`/agencias/${agency.id}/availability`, { method: 'PUT', headers: { Authorization: `Bearer ${state.agencyToken}` }, body: JSON.stringify({ items }) });
+        alert('Disponibilidade e preços atualizados.');
+        renderAgencyDashboard();
+      } catch (error) {
+        alert(error.message);
+        saveButton.disabled = false;
+      }
     });
   } catch (error) {
     content.innerHTML = `<p>${error.message}</p>`;
