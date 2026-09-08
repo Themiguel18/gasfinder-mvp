@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
+const { saveDatabase } = db;
 
 function insertSeedData() {
   if (db.users.length === 0) {
@@ -45,6 +46,9 @@ function insertSeedData() {
       { id: 2, agency_id: 1, day_of_week: 'Terça', open_time: '07:00', close_time: '18:00' }
     );
   }
+
+  if (!Array.isArray(db.agency_requests)) db.agency_requests = [];
+  saveDatabase();
 }
 
 module.exports = { insertSeedData };

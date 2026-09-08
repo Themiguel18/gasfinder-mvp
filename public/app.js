@@ -6,6 +6,7 @@ const state = {
   agencyId: null,
   agency: null,
   agencyToken: localStorage.getItem('gasfinder_token') || '',
+  user: JSON.parse(localStorage.getItem('gasfinder_user') || 'null'),
   agencies: [],
   stats: null,
   form: {
@@ -17,7 +18,8 @@ const state = {
     address: '',
     latitude: '',
     longitude: '',
-    bottleId: '1'
+    bottleId: '1',
+    hours: 'Segunda a Sábado, 07:00 às 18:00'
   }
 };
 
@@ -45,8 +47,8 @@ function render() {
         <header class="topbar">
           <div class="brand">Gas<span>Finder</span></div>
           <nav class="nav">
-            <button>Agência</button>
-            <button>Admin</button>
+            <button id="agencyNavBtn">Agência</button>
+            <button id="adminNavBtn">Admin</button>
           </nav>
         </header>
 
@@ -90,6 +92,8 @@ function render() {
         fetchNearbyAgencies();
       }
     });
+    document.getElementById('agencyNavBtn').addEventListener('click', () => { state.screen = 'agency-login'; render(); });
+    document.getElementById('adminNavBtn').addEventListener('click', () => { state.screen = 'admin-login'; render(); });
     renderBottleOptions();
     return;
   }
@@ -182,6 +186,10 @@ function render() {
     renderAgencyDashboard();
   }
 
+  if (state.screen === 'agency-login') renderAgencyLogin();
+  if (state.screen === 'agency-register') renderAgencyRegister();
+  if (state.screen === 'admin-login') renderAdminLogin();
+
   if (state.screen === 'admin-dashboard') {
     app.innerHTML = `
       <div class="container">
@@ -202,12 +210,59 @@ function render() {
 
     document.getElementById('logoutAdminBtn').addEventListener('click', () => {
       localStorage.removeItem('gasfinder_token');
+      localStorage.removeItem('gasfinder_user');
+      state.user = null;
       state.screen = 'home';
       render();
     });
 
     renderAdminDashboard();
   }
+}
+
+function renderAccessShell(title, subtitle, content) {
+  app.innerHTML = `<div class="container"><header class="topbar"><div class="brand">Gas<span>Finder</span></div><nav class="nav"><button id="accessBackBtn">Voltar</button></nav></header><section class="detail-page"><h2>${title}</h2><p>${subtitle}</p>${content}</section></div>`;
+  document.getElementById('accessBackBtn').addEventListener('click', () => { state.screen = 'home'; render(); });
+}
+
+function renderAgencyLogin() {
+  renderAccessShell('Acesso da agência', 'Entre para atualizar os seus dados e a disponibilidade.', `<div class="form-grid"><input id="agencyEmail" type="email" placeholder="Email" /><input id="agencyPassword" type="password" placeholder="Palavra-passe" /><button class="primary-btn" id="agencyLoginBtn">Entrar</button><button class="ghost-btn" id="agencyRegisterBtn">Solicitar cadastro</button></div>`);
+  document.getElementById('agencyRegisterBtn').addEventListener('click', () => { state.screen = 'agency-register'; render(); });
+  document.getElementById('agencyLoginBtn').addEventListener('click', async () => {
+    try {
+      const payload = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email: document.getElementById('agencyEmail').value, password: document.getElementById('agencyPassword').value }) });
+      if (payload.user.role !== 'agency') throw new Error('Use as credenciais de uma agência.');
+      setSession(payload); state.screen = 'agency-dashboard'; render();
+    } catch (error) { alert(error.message); }
+  });
+}
+
+function renderAgencyRegister() {
+  renderAccessShell('Solicitar cadastro de agência', 'A agência ficará pendente até a aprovação do administrador.', `<div class="form-grid"><input id="registerName" placeholder="Nome da agência" /><input id="registerResponsible" placeholder="Nome do responsável" /><input id="registerEmail" type="email" placeholder="Email" /><input id="registerPhone" placeholder="Telefone" /><input id="registerPassword" type="password" placeholder="Palavra-passe" /><input id="registerAddress" placeholder="Endereço" /><input id="registerLat" placeholder="Latitude" /><input id="registerLng" placeholder="Longitude" /><input id="registerHours" placeholder="Horário de funcionamento" value="Segunda a Sábado, 07:00 às 18:00" /><button class="primary-btn" id="registerAgencyBtn">Enviar solicitação</button></div>`);
+  document.getElementById('registerAgencyBtn').addEventListener('click', async () => {
+    const value = (id) => document.getElementById(id).value.trim();
+    try {
+      await apiRequest('/agencias', { method: 'POST', body: JSON.stringify({ name: value('registerName'), responsible: value('registerResponsible'), email: value('registerEmail'), phone: value('registerPhone'), password: value('registerPassword'), address: value('registerAddress'), latitude: value('registerLat'), longitude: value('registerLng'), hours: value('registerHours') }) });
+      alert('Solicitação enviada. Aguarde a aprovação do administrador.'); state.screen = 'agency-login'; render();
+    } catch (error) { alert(error.message); }
+  });
+}
+
+function renderAdminLogin() {
+  renderAccessShell('Acesso administrativo', 'Área restrita ao administrador do GasFinder.', `<div class="form-grid"><input id="adminEmail" type="email" placeholder="Email" value="admin@gasfinder.app" /><input id="adminPassword" type="password" placeholder="Palavra-passe" value="admin123" /><button class="primary-btn" id="adminLoginBtn">Entrar</button></div>`);
+  document.getElementById('adminLoginBtn').addEventListener('click', async () => {
+    try {
+      const payload = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email: document.getElementById('adminEmail').value, password: document.getElementById('adminPassword').value }) });
+      if (payload.user.role !== 'admin') throw new Error('Acesso reservado ao administrador.');
+      setSession(payload); state.screen = 'admin-dashboard'; render();
+    } catch (error) { alert(error.message); }
+  });
+}
+
+function setSession(payload) {
+  localStorage.setItem('gasfinder_token', payload.token);
+  localStorage.setItem('gasfinder_user', JSON.stringify(payload.user));
+  state.agencyToken = payload.token; state.user = payload.user;
 }
 
 function renderBottleOptions() {
@@ -361,68 +416,40 @@ async function renderAgencyDashboard() {
   const content = document.getElementById('agencyDashboardContent');
   if (!content) return;
 
-  if (!state.agencyToken) {
-    content.innerHTML = `
-      <div class="form-grid">
-        <input id="agencyEmail" placeholder="Email da agência" />
-        <input id="agencyPassword" type="password" placeholder="Senha" />
-        <button class="primary-btn" id="agencyLoginBtn">Entrar no painel</button>
-      </div>
-    `;
-
-    document.getElementById('agencyLoginBtn').addEventListener('click', async () => {
-      const email = document.getElementById('agencyEmail').value;
-      const password = document.getElementById('agencyPassword').value;
-      try {
-        const payload = await apiRequest('/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ email, password })
-        });
-        localStorage.setItem('gasfinder_token', payload.token);
-        state.agencyToken = payload.token;
-        renderAgencyDashboard();
-      } catch (error) {
-        alert(error.message);
-      }
-    });
-    return;
-  }
-
   try {
-    const profile = await apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'saojose@gasfinder.app', password: 'agencia123' })
-    });
-    const agencyId = 1;
-    const agency = await apiRequest(`/agencias/${agencyId}`);
+    if (!state.user || state.user.role !== 'agency') { state.screen = 'agency-login'; render(); return; }
+    const agency = await apiRequest(`/agencias/${state.user.id}/dashboard`, { headers: { Authorization: `Bearer ${state.agencyToken}` } });
 
     content.innerHTML = `
-      <h3>Agência São José</h3>
-      <p>Status: <span class="status open">Aberta</span></p>
+      <h3>${agency.name}</h3>
+      <p>${agency.address} · ${agency.phone} · ${agency.hours || 'Horário não informado'}</p>
+      <div class="form-grid"><input id="agencyPhone" placeholder="Telefone" value="${agency.phone || ''}" /><input id="agencyAddress" placeholder="Endereço" value="${agency.address || ''}" /><input id="agencyHours" placeholder="Horário" value="${agency.hours || ''}" /><button class="secondary-btn" id="updateAgencyProfileBtn">Atualizar dados</button></div>
+      <h3>Disponibilidade e preços</h3>
       <div class="inventory">
         ${agency.availability.map((item) => `
-          <div class="inventory-item">
-            <span>${item.bottle_name}</span>
-            <strong>${Number(item.available) === 1 ? 'Disponível' : 'Indisponível'}</strong>
-          </div>
+          <div class="inventory-item"><span>${dbBottleName(item.bottle_id)}</span><span><select data-available="${item.bottle_id}"><option value="1" ${Number(item.available) === 1 ? 'selected' : ''}>Disponível</option><option value="0" ${Number(item.available) === 0 ? 'selected' : ''}>Indisponível</option></select><input data-price="${item.bottle_id}" type="number" value="${item.price || 0}" min="0" /> Kz</span></div>
         `).join('')}
       </div>
-      <button class="primary-btn" id="toggleAvailabilityBtn">Atualizar disponibilidade</button>
+      <button class="primary-btn" id="updateAvailabilityBtn">Atualizar informações</button>
     `;
 
-    document.getElementById('toggleAvailabilityBtn').addEventListener('click', async () => {
-      await apiRequest(`/agencias/1/availability`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${state.agencyToken}` },
-        body: JSON.stringify({ bottleId: 1, available: false, price: 8500 })
-      });
-      alert('Disponibilidade atualizada.');
+    document.getElementById('updateAgencyProfileBtn').addEventListener('click', async () => {
+      await apiRequest(`/agencias/${agency.id}/profile`, { method: 'PUT', headers: { Authorization: `Bearer ${state.agencyToken}` }, body: JSON.stringify({ phone: document.getElementById('agencyPhone').value, address: document.getElementById('agencyAddress').value, hours: document.getElementById('agencyHours').value }) });
       renderAgencyDashboard();
+    });
+    document.getElementById('updateAvailabilityBtn').addEventListener('click', async () => {
+      for (const select of content.querySelectorAll('[data-available]')) {
+        const bottleId = Number(select.dataset.available);
+        await apiRequest(`/agencias/${agency.id}/availability`, { method: 'PUT', headers: { Authorization: `Bearer ${state.agencyToken}` }, body: JSON.stringify({ bottleId, available: select.value === '1', price: Number(content.querySelector(`[data-price="${bottleId}"]`).value) }) });
+      }
+      alert('Informações atualizadas.'); renderAgencyDashboard();
     });
   } catch (error) {
     content.innerHTML = `<p>${error.message}</p>`;
   }
 }
+
+function dbBottleName(id) { return Number(id) === 1 ? 'Botija Azul' : Number(id) === 2 ? 'Botija Laranja' : 'Botija'; }
 
 async function renderAdminDashboard() {
   const content = document.getElementById('adminDashboardContent');

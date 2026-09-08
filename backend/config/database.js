@@ -1,4 +1,9 @@
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
+
+const dataDirectory = path.join(__dirname, '..', '..', 'data');
+const dataFile = path.join(dataDirectory, 'gasfinder.json');
 
 const bottles = [
   { id: 1, name: 'Botija Azul', color: 'blue', weight: '18kg', status: 'active' },
@@ -41,14 +46,37 @@ const availability = [
 
 const settings = { stale_hours: '9' };
 
-const database = {
+const initialDatabase = {
   bottles,
   users,
   agencies,
   schedules,
   availability,
   settings,
-  searches: []
+  searches: [],
+  agency_requests: []
 };
 
+function loadDatabase() {
+  try {
+    if (fs.existsSync(dataFile)) {
+      return { ...initialDatabase, ...JSON.parse(fs.readFileSync(dataFile, 'utf8')) };
+    }
+  } catch (error) {
+    console.error('Não foi possível ler o banco local:', error.message);
+  }
+
+  return initialDatabase;
+}
+
+const database = loadDatabase();
+
+function saveDatabase() {
+  fs.mkdirSync(dataDirectory, { recursive: true });
+  const temporaryFile = `${dataFile}.tmp`;
+  fs.writeFileSync(temporaryFile, JSON.stringify(database, null, 2));
+  fs.renameSync(temporaryFile, dataFile);
+}
+
 module.exports = database;
+module.exports.saveDatabase = saveDatabase;

@@ -1,54 +1,40 @@
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const { calculateDistanceKm } = require('../services/searchService');
+const { saveDatabase } = db;
 
 function getNearbyAgencies(req, res) {
   const { latitude, longitude, bottleName } = req.query;
+  const radius = Math.min(Math.max(Number(req.query.radius) || 5, 1), 50);
   const lat = Number(latitude);
   const lon = Number(longitude);
 
-  if (!lat || !lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
     return res.status(400).json({ message: 'Localização do cliente é obrigatória.' });
   }
 
-  const radiusPlan = [2, 5, 10];
-  const allResults = [];
-
-  for (const radius of radiusPlan) {
-    const matches = db.agencies.filter((agency) => agency.status === 'active' && agency.verified === 1);
-    const filtered = matches
-      .map((agency) => {
-        const distance = Number(calculateDistanceKm(lat, lon, agency.latitude, agency.longitude).toFixed(2));
-        const bottleMatches = db.availability.filter((item) => item.agency_id === agency.id);
-        const relevant = bottleMatches.map((entry) => {
-          const bottle = db.bottles.find((b) => b.id === entry.bottle_id);
-          const matchesBottle = !bottleName || bottleName === 'Todas' || bottle.name === bottleName;
-          return {
-            ...agency,
-            bottleName: bottle ? bottle.name : null,
-            bottleColor: bottle ? bottle.color : null,
-            available: !!entry.available,
-            price: entry.price,
-            updatedAt: entry.updated_at,
-            distance,
-            matchesBottle
-          };
-        }).filter((item) => item.matchesBottle && distance <= radius);
-
-        return relevant;
+  const matches = db.agencies.filter((agency) => agency.status === 'active' && agency.verified === 1);
+  const results = matches.flatMap((agency) => {
+    const distance = Number(calculateDistanceKm(lat, lon, agency.latitude, agency.longitude).toFixed(2));
+    if (distance > radius) return [];
+    return db.availability
+      .filter((entry) => entry.agency_id === agency.id)
+      .map((entry) => {
+        const bottle = db.bottles.find((item) => item.id === entry.bottle_id);
+        return {
+          ...agency,
+          bottleName: bottle ? bottle.name : null,
+          bottleColor: bottle ? bottle.color : null,
+          available: Boolean(entry.available),
+          price: entry.price,
+          updatedAt: entry.updated_at,
+          distance
+        };
       })
-      .flat();
+      .filter((item) => !bottleName || bottleName === 'Todas' || item.bottleName === bottleName);
+  }).sort((a, b) => Number(b.available) - Number(a.available) || a.distance - b.distance);
 
-    allResults.push(...filtered);
-    if (allResults.some((agency) => agency.available)) {
-      const final = allResults
-        .filter((agency) => (!bottleName || bottleName === 'Todas' || agency.bottleName === bottleName))
-        .sort((a, b) => Number(b.available) - Number(a.available) || a.distance - b.distance);
-      return res.json({ radius, message: 'Resultados encontrados na área atual.', results: final });
-    }
-  }
-
-  return res.json({ message: 'Não encontramos gás disponível na área pesquisada.', results: [] });
+  return res.json({ radius, message: results.length ? 'Resultados encontrados na área atual.' : `Nenhuma agência encontrada em ${radius} km.`, results });
 }
 
 function getAgencyById(req, res) {
@@ -71,7 +57,7 @@ function getAgencyById(req, res) {
 function createAgency(req, res) {
   const { name, responsible, phone, email, password, address, latitude, longitude, hours, bottles: bottleList } = req.body;
 
-  if (!name || !responsible || !phone || !email || !password || !address || !latitude || !longitude) {
+  if (!name || !responsible || !phone || !email || !password || !address || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
     return res.status(400).json({ message: 'Preencha todos os campos obrigatórios.' });
   }
 
@@ -98,6 +84,7 @@ function createAgency(req, res) {
   };
 
   db.agencies.push(newAgency);
+  db.agency_requests.push({ id: agencyId, agency_id: agencyId, status: 'pending', created_at: newAgency.created_at });
 
   if (Array.isArray(hours)) {
     hours.forEach((schedule) => {
@@ -110,6 +97,8 @@ function createAgency(req, res) {
       db.availability.push({ id: Date.now() + Math.random(), agency_id: agencyId, bottle_id: Number(bottle.bottle_id), available: bottle.available ? 1 : 0, price: bottle.price || 0, updated_at: new Date().toISOString() });
     });
   }
+
+  saveDatabase();
 
   return res.status(201).json({ message: 'Agência registrada com sucesso. Aguardando aprovação.', agencyId });
 }
@@ -126,16 +115,44 @@ function updateAvailability(req, res) {
     return res.status(400).json({ message: 'Disponibilidade obrigatória.' });
   }
 
-  const record = db.availability.find((item) => item.id === Number(id));
-  if (!record) {
-    return res.status(404).json({ message: 'Registro de disponibilidade não encontrado.' });
+  const agency = db.agencies.find((item) => item.id === Number(id));
+  if (!agency) return res.status(404).json({ message: 'Agência não encontrada.' });
+  const bottleId = Number(req.body.bottleId);
+  if (!db.bottles.some((bottle) => bottle.id === bottleId)) {
+    return res.status(400).json({ message: 'Tipo de botija inválido.' });
   }
 
-  record.available = available ? 1 : 0;
-  record.price = price || record.price || 0;
+  let record = db.availability.find((item) => item.agency_id === agency.id && item.bottle_id === bottleId);
+  if (!record) {
+    record = { id: Date.now(), agency_id: agency.id, bottle_id: bottleId, available: 0, price: 0 };
+    db.availability.push(record);
+  }
+  record.available = Boolean(available) ? 1 : 0;
+  record.price = price === undefined ? record.price || 0 : Number(price);
   record.updated_at = new Date().toISOString();
+  saveDatabase();
 
   return res.json({ message: 'Disponibilidade atualizada com sucesso.', updated: true });
+}
+
+function updateAgencyProfile(req, res) {
+  const agency = db.agencies.find((item) => item.id === Number(req.params.id));
+  if (!agency) return res.status(404).json({ message: 'Agência não encontrada.' });
+  const { phone, address, latitude, longitude, hours } = req.body;
+  if (phone !== undefined) agency.phone = phone;
+  if (address !== undefined) agency.address = address;
+  if (latitude !== undefined) agency.latitude = Number(latitude);
+  if (longitude !== undefined) agency.longitude = Number(longitude);
+  if (hours !== undefined) agency.hours = hours;
+  agency.updated_at = new Date().toISOString();
+  saveDatabase();
+  return res.json({ message: 'Informações atualizadas.', agency });
+}
+
+function getAgencyDashboard(req, res) {
+  const agency = db.agencies.find((item) => item.id === Number(req.params.id));
+  if (!agency) return res.status(404).json({ message: 'Agência não encontrada.' });
+  return res.json({ ...agency, availability: db.availability.filter((item) => item.agency_id === agency.id), schedules: db.schedules.filter((item) => item.agency_id === agency.id) });
 }
 
 module.exports = {
@@ -143,5 +160,7 @@ module.exports = {
   getAgencyById,
   createAgency,
   listBottleTypes,
-  updateAvailability
+  updateAvailability,
+  updateAgencyProfile,
+  getAgencyDashboard
 };

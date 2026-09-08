@@ -26,4 +26,12 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { authenticateToken, requireRole };
+function requireAgencyOwner(req, res, next) {
+  if (req.user.role === 'admin') return next();
+  if (req.user.role !== 'agency' || Number(req.user.id) !== Number(req.params.id)) {
+    return res.status(403).json({ message: 'Uma agência só pode alterar os próprios dados.' });
+  }
+  return next();
+}
+
+module.exports = { authenticateToken, requireRole, requireAgencyOwner };

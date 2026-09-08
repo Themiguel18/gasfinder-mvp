@@ -1,0 +1,104 @@
+{
+  "bottles": [
+    {
+      "id": 1,
+      "name": "Botija Azul",
+      "color": "blue",
+      "weight": "18kg",
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "name": "Botija Laranja",
+      "color": "orange",
+      "weight": "13kg",
+      "status": "active"
+    },
+    {
+      "id": 3,
+      "name": "Botija Verde",
+      "color": "green",
+      "weight": "45kg",
+      "status": "active"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "Administrador",
+      "email": "admin@gasfinder.app",
+      "password": "$2a$10$ODLeoZkRwsYZlhGvN3GKLeu6cjYyrXSKDx.8Wneig/adVKjHlANNe",
+      "role": "admin"
+    },
+    {
+      "id": 2,
+      "name": "Cliente Teste",
+      "email": "cliente@gasfinder.app",
+      "password": "$2a$10$Qn6TcwhKQPAdyQBGsxY44eWNuRgREXYyGgvR9O.oepljo7svDqQg.",
+      "role": "client"
+    }
+  ],
+  "agencies": [
+    {
+      "id": 1,
+      "name": "Agência São José",
+      "responsible": "Carlos Silva",
+      "phone": "923111222",
+      "email": "saojose@gasfinder.app",
+      "password": "$2a$10$S4wUU4OGjssQQW3NNsx5GONWZXef4r7rsjGXRv35nZOqLiyIquXU.",
+      "address": "Bairro Central, Luanda",
+      "latitude": -8.84,
+      "longitude": 13.23,
+      "status": "active",
+      "verified": 1,
+      "created_at": "2026-09-08T08:06:52.914Z"
+    }
+  ],
+  "schedules": [
+    {
+      "id": 1,
+      "agency_id": 1,
+      "day_of_week": "Segunda",
+      "open_time": "07:00",
+      "close_time": "18:00"
+    },
+    {
+      "id": 2,
+      "agency_id": 1,
+      "day_of_week": "Terça",
+      "open_time": "07:00",
+      "close_time": "18:00"
+    }
+  ],
+  "availability": [
+    {
+      "id": 1,
+      "agency_id": 1,
+      "bottle_id": 1,
+      "available": 1,
+      "price": 8500,
+      "updated_at": "2026-09-08T08:01:52.933Z"
+    },
+    {
+      "id": 2,
+      "agency_id": 1,
+      "bottle_id": 2,
+      "available": 0,
+      "price": 8200,
+      "updated_at": "2026-09-08T07:06:52.933Z"
+    },
+    {
+      "id": 3,
+      "agency_id": 1,
+      "bottle_id": 3,
+      "available": 1,
+      "price": 15000,
+      "updated_at": "2026-09-08T07:56:52.933Z"
+    }
+  ],
+  "settings": {
+    "stale_hours": "9"
+  },
+  "searches": [],
+  "agency_requests": []
+}

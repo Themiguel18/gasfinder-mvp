@@ -18,7 +18,7 @@ async function findLoginUser(email, password, userRows = db.users, agencyRows = 
   }
 
   const agency = agencyRows.find((item) => item.email === email) || null;
-  if (agency) {
+  if (agency && agency.status === 'active' && agency.verified === 1) {
     const valid = await bcrypt.compare(password, agency.password);
     if (valid) return { ...agency, role: 'agency', name: agency.name || agency.responsible || 'Agência' };
   }
@@ -65,4 +65,12 @@ async function login(req, res) {
   });
 }
 
-module.exports = { register, login, findLoginUser };
+function me(req, res) {
+  const source = req.user.role === 'agency'
+    ? db.agencies.find((agency) => agency.id === Number(req.user.id))
+    : db.users.find((user) => user.id === Number(req.user.id));
+  if (!source) return res.status(404).json({ message: 'Utilizador não encontrado.' });
+  return res.json({ id: source.id, name: source.name, email: source.email, role: req.user.role });
+}
+
+module.exports = { register, login, me, findLoginUser };
