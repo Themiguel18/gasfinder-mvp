@@ -117,7 +117,7 @@
       "bottle_id": 1,
       "available": 1,
       "price": 4.5,
-      "updated_at": "2026-09-08T09:03:15.871Z"
+      "updated_at": "2026-09-08T17:56:36.548Z"
     },
     {
       "id": 1788857803587,
@@ -125,7 +125,7 @@
       "bottle_id": 2,
       "available": 1,
       "price": 3000,
-      "updated_at": "2026-09-08T09:03:15.871Z"
+      "updated_at": "2026-09-08T17:56:36.548Z"
     }
   ],
   "settings": {
