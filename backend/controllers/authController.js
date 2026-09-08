@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/database');
+const { saveDatabase } = db;
 
 function signToken(user) {
   return jwt.sign(
@@ -39,8 +40,9 @@ async function register(req, res) {
   }
 
   const hashed = await bcrypt.hash(password, 10);
-  const newUser = { id: Date.now(), name, email, password: hashed, role };
+  const newUser = { id: Date.now(), name, email, password: hashed, role: 'client' };
   db.users.push(newUser);
+  saveDatabase();
 
   const token = signToken(newUser);
   return res.status(201).json({ token, user: { id: newUser.id, name, email, role } });

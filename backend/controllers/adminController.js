@@ -3,7 +3,7 @@ const { saveDatabase } = db;
 
 function getAllAgencies(req, res) {
   return res.json(db.agencies.map((agency) => ({
-    ...agency,
+    ...(({ password, ...safeAgency }) => safeAgency)(agency),
     availability: db.availability.filter((item) => item.agency_id === agency.id).map((item) => ({ ...item, bottle_name: db.bottles.find((bottle) => bottle.id === item.bottle_id)?.name }))
   })));
 }
@@ -16,6 +16,8 @@ function approveAgency(req, res) {
 
   agency.status = 'active';
   agency.verified = 1;
+  const request = db.agency_requests.find((item) => item.agency_id === agency.id);
+  if (request) request.status = 'approved';
   saveDatabase();
   return res.json({ message: 'Agência aprovada.', updated: true });
 }
@@ -76,7 +78,8 @@ function updateAgency(req, res) {
   fields.forEach((field) => { if (req.body[field] !== undefined) agency[field] = req.body[field]; });
   if (req.body.status) agency.verified = req.body.status === 'active' ? 1 : 0;
   saveDatabase();
-  return res.json({ message: 'Agência atualizada.', agency });
+  const { password, ...safeAgency } = agency;
+  return res.json({ message: 'Agência atualizada.', agency: safeAgency });
 }
 
 module.exports = { getAllAgencies, approveAgency, suspendAgency, rejectAgency, deleteAgency, updateAgency, getDashboardStats };

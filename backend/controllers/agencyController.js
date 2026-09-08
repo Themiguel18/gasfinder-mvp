@@ -3,6 +3,11 @@ const bcrypt = require('bcryptjs');
 const { calculateDistanceKm } = require('../services/searchService');
 const { saveDatabase } = db;
 
+function publicAgency(agency) {
+  const { password, ...safeAgency } = agency;
+  return safeAgency;
+}
+
 function getNearbyAgencies(req, res) {
   const { latitude, longitude, bottleName } = req.query;
   const radius = Math.min(Math.max(Number(req.query.radius) || 5, 1), 50);
@@ -22,7 +27,7 @@ function getNearbyAgencies(req, res) {
       .map((entry) => {
         const bottle = db.bottles.find((item) => item.id === entry.bottle_id);
         return {
-          ...agency,
+          ...publicAgency(agency),
           bottleName: bottle ? bottle.name : null,
           bottleColor: bottle ? bottle.color : null,
           available: Boolean(entry.available),
@@ -44,7 +49,7 @@ function getAgencyById(req, res) {
   }
 
   const agencyWithDetails = {
-    ...agency,
+    ...publicAgency(agency),
     schedules: db.schedules.filter((item) => item.agency_id === agency.id),
     availability: db.availability
       .filter((item) => item.agency_id === agency.id)
@@ -78,6 +83,7 @@ function createAgency(req, res) {
     address,
     latitude: Number(latitude),
     longitude: Number(longitude),
+    hours: hours || '',
     status: 'pending',
     verified: 0,
     created_at: new Date().toISOString()
@@ -146,13 +152,13 @@ function updateAgencyProfile(req, res) {
   if (hours !== undefined) agency.hours = hours;
   agency.updated_at = new Date().toISOString();
   saveDatabase();
-  return res.json({ message: 'Informações atualizadas.', agency });
+  return res.json({ message: 'Informações atualizadas.', agency: publicAgency(agency) });
 }
 
 function getAgencyDashboard(req, res) {
   const agency = db.agencies.find((item) => item.id === Number(req.params.id));
   if (!agency) return res.status(404).json({ message: 'Agência não encontrada.' });
-  return res.json({ ...agency, availability: db.availability.filter((item) => item.agency_id === agency.id), schedules: db.schedules.filter((item) => item.agency_id === agency.id) });
+  return res.json({ ...publicAgency(agency), availability: db.availability.filter((item) => item.agency_id === agency.id), schedules: db.schedules.filter((item) => item.agency_id === agency.id) });
 }
 
 module.exports = {

@@ -3,6 +3,7 @@ const state = {
   bottle: 'Botija Azul',
   location: null,
   results: [],
+  radius: 5,
   agencyId: null,
   agency: null,
   agencyToken: localStorage.getItem('gasfinder_token') || '',
@@ -53,7 +54,7 @@ function render() {
         </header>
 
         <section class="hero">
-          <h1>Encontre gás perto de você.</h1>
+          <h1>Encontre a casa/agência de gás perto de você.</h1>
           <p>Veja quais agências têm o gás que você procura antes de sair de casa.</p>
           <div class="hero-actions">
             <button class="primary-btn" id="findGasBtn">Encontrar gás perto de mim</button>
@@ -179,6 +180,8 @@ function render() {
 
     document.getElementById('logoutAgencyBtn').addEventListener('click', () => {
       localStorage.removeItem('gasfinder_token');
+      localStorage.removeItem('gasfinder_user');
+      state.user = null;
       state.screen = 'home';
       render();
     });
@@ -308,8 +311,9 @@ async function fetchNearbyAgencies() {
   const { latitude, longitude } = state.location;
 
   try {
-    const payload = await apiRequest(`/agencias/proximas?latitude=${latitude}&longitude=${longitude}&bottleName=${encodeURIComponent(state.bottle)}`);
+    const payload = await apiRequest(`/agencias/proximas?latitude=${latitude}&longitude=${longitude}&radius=${state.radius}&bottleName=${encodeURIComponent(state.bottle)}`);
     state.results = payload.results || [];
+    state.radius = payload.radius || state.radius;
     state.screen = 'results';
     render();
   } catch (error) {
@@ -322,7 +326,8 @@ function renderResultsList() {
   if (!list) return;
 
   if (!state.results.length) {
-    list.innerHTML = '<div class="card"><p>Nenhuma agência encontrada com os critérios atuais.</p></div>';
+    list.innerHTML = `<div class="card"><p>Nenhuma agência encontrada em ${state.radius} km.</p><button class="primary-btn" id="expandSearchBtn">Pesquisar em ${Math.min(state.radius * 2, 50)} km</button></div>`;
+    document.getElementById('expandSearchBtn').addEventListener('click', () => { state.radius = Math.min(state.radius * 2, 50); fetchNearbyAgencies(); });
     return;
   }
 
@@ -455,34 +460,8 @@ async function renderAdminDashboard() {
   const content = document.getElementById('adminDashboardContent');
   if (!content) return;
 
-  if (!state.agencyToken) {
-    content.innerHTML = `
-      <div class="form-grid">
-        <input id="adminEmail" placeholder="Email do administrador" value="admin@gasfinder.app" />
-        <input id="adminPassword" type="password" value="admin123" placeholder="Senha" />
-        <button class="primary-btn" id="adminLoginBtn">Entrar</button>
-      </div>
-    `;
-
-    document.getElementById('adminLoginBtn').addEventListener('click', async () => {
-      const email = document.getElementById('adminEmail').value;
-      const password = document.getElementById('adminPassword').value;
-      try {
-        const payload = await apiRequest('/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ email, password })
-        });
-        localStorage.setItem('gasfinder_token', payload.token);
-        state.agencyToken = payload.token;
-        renderAdminDashboard();
-      } catch (error) {
-        alert(error.message);
-      }
-    });
-    return;
-  }
-
   try {
+    if (!state.user || state.user.role !== 'admin') { state.screen = 'admin-login'; render(); return; }
     const stats = await apiRequest('/admin/stats', {
       headers: { Authorization: `Bearer ${state.agencyToken}` }
     });
@@ -496,15 +475,11 @@ async function renderAdminDashboard() {
         <div class="stat-box"><h4>Agências ativas</h4><h2>${stats.active_agencies}</h2></div>
         <div class="stat-box"><h4>Pendentes</h4><h2>${stats.pending_agencies}</h2></div>
         <div class="stat-box"><h4>Suspensas</h4><h2>${stats.suspended_agencies}</h2></div>
+        <div class="stat-box"><h4>Com gás disponível</h4><h2>${stats.gas_available_agencies}</h2></div>
       </div>
       <div class="card" style="margin-top: 18px;">
         <h3>Agências</h3>
-        ${agencies.map((agency) => `
-          <div class="inventory-item" style="margin-top: 8px;">
-            <span>${agency.name} — ${agency.status}</span>
-            <button class="ghost-btn" data-approve="${agency.id}">Aprovar</button>
-          </div>
-        `).join('')}
+        ${agencies.map((agency) => `<div class="inventory-item" style="margin-top: 8px;"><span><strong>${agency.name}</strong><br>${agency.address} · ${agency.phone}<br><small>${agency.status} · ${agency.availability.filter((item) => Number(item.available) === 1).map((item) => item.bottle_name).join(', ') || 'Sem gás disponível'}</small></span><span class="card-actions">${agency.status === 'pending' ? `<button class="ghost-btn" data-approve="${agency.id}">Aprovar</button><button class="ghost-btn" data-reject="${agency.id}">Rejeitar</button>` : ''}${agency.status === 'active' ? `<button class="ghost-btn" data-suspend="${agency.id}">Desativar</button>` : ''}<button class="ghost-btn" data-delete="${agency.id}">Excluir</button></span></div>`).join('')}
       </div>
     `;
 
@@ -517,9 +492,16 @@ async function renderAdminDashboard() {
         renderAdminDashboard();
       });
     });
+    content.querySelectorAll('[data-reject]').forEach((btn) => btn.addEventListener('click', () => adminAction(`/admin/agencias/${btn.dataset.reject}/rejeitar`, 'PUT')));
+    content.querySelectorAll('[data-suspend]').forEach((btn) => btn.addEventListener('click', () => adminAction(`/admin/agencias/${btn.dataset.suspend}/suspender`, 'PUT')));
+    content.querySelectorAll('[data-delete]').forEach((btn) => btn.addEventListener('click', () => adminAction(`/admin/agencias/${btn.dataset.delete}`, 'DELETE')));
   } catch (error) {
     content.innerHTML = `<p>${error.message}</p>`;
   }
+}
+
+async function adminAction(url, method) {
+  try { await apiRequest(url, { method, headers: { Authorization: `Bearer ${state.agencyToken}` } }); renderAdminDashboard(); } catch (error) { alert(error.message); }
 }
 
 function formatRelativeTime(dateString) {
@@ -535,16 +517,11 @@ function formatRelativeTime(dateString) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const navButtons = document.querySelectorAll('.nav button');
-  if (navButtons.length >= 2) {
-    navButtons[0].addEventListener('click', () => {
-      state.screen = 'agency-dashboard';
-      render();
-    });
-    navButtons[1].addEventListener('click', () => {
-      state.screen = 'admin-dashboard';
-      render();
-    });
-  }
+  const route = window.location.pathname;
+  if (route === '/agencia/cadastro') state.screen = 'agency-register';
+  else if (route === '/agencia/dashboard') state.screen = 'agency-dashboard';
+  else if (route === '/agencia') state.screen = 'agency-login';
+  else if (route === '/admin/dashboard' || route === '/admin/agencias' || route === '/admin/solicitacoes') state.screen = 'admin-dashboard';
+  else if (route === '/admin') state.screen = 'admin-login';
   render();
 });

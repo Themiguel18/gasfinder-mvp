@@ -1,5 +1,5 @@
 const express = require('express');
-const { getNearbyAgencies, getAgencyById, createAgency, listBottleTypes, updateAvailability } = require('../controllers/agencyController');
+const { getNearbyAgencies, getAgencyById, createAgency, listBottleTypes, updateAvailability, updateAgencyProfile, getAgencyDashboard } = require('../controllers/agencyController');
 const { authenticateToken, requireRole, requireAgencyOwner } = require('../middleware/auth');
 
 const router = express.Router();
