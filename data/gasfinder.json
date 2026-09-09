@@ -68,6 +68,21 @@
       "verified": 1,
       "created_at": "2026-09-08T08:21:52.839Z",
       "updated_at": "2026-09-08T08:55:39.750Z"
+    },
+    {
+      "id": 1788944012732,
+      "name": "Rosa & filhos",
+      "responsible": "Rosa",
+      "phone": "947543352",
+      "email": "businesscooperation158@gmail.com",
+      "password": "$2a$10$d8BCntnXLNJwlxDcKJoiIekk6bfSr36n4lqp4hxzi5Zjk9astEwJ2",
+      "address": "Zona verde 3",
+      "latitude": 13,
+      "longitude": 112,
+      "hours": "Segunda a Sábado, 07:00 às 18:00",
+      "status": "active",
+      "verified": 1,
+      "created_at": "2026-09-09T08:53:32.732Z"
     }
   ],
   "schedules": [
@@ -116,8 +131,8 @@
       "agency_id": 1788855712839,
       "bottle_id": 1,
       "available": 1,
-      "price": 4.5,
-      "updated_at": "2026-09-08T17:56:36.548Z"
+      "price": 4500,
+      "updated_at": "2026-09-09T08:51:40.760Z"
     },
     {
       "id": 1788857803587,
@@ -125,7 +140,23 @@
       "bottle_id": 2,
       "available": 1,
       "price": 3000,
-      "updated_at": "2026-09-08T17:56:36.548Z"
+      "updated_at": "2026-09-09T08:51:40.760Z"
+    },
+    {
+      "id": 1788944096657,
+      "agency_id": 1788944012732,
+      "bottle_id": 1,
+      "available": 1,
+      "price": 4000,
+      "updated_at": "2026-09-09T08:54:56.656Z"
+    },
+    {
+      "id": 1788944096658,
+      "agency_id": 1788944012732,
+      "bottle_id": 2,
+      "available": 1,
+      "price": 3500,
+      "updated_at": "2026-09-09T08:54:56.656Z"
     }
   ],
   "settings": {
@@ -138,6 +169,12 @@
       "agency_id": 1788855712839,
       "status": "approved",
       "created_at": "2026-09-08T08:21:52.839Z"
+    },
+    {
+      "id": 1788944012732,
+      "agency_id": 1788944012732,
+      "status": "approved",
+      "created_at": "2026-09-09T08:53:32.732Z"
     }
   ]
 }
