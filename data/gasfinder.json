@@ -83,6 +83,21 @@
       "status": "active",
       "verified": 1,
       "created_at": "2026-09-09T08:53:32.732Z"
+    },
+    {
+      "id": 1789239092282,
+      "name": "Atutu & filhos",
+      "responsible": "Atutu",
+      "phone": "945912089",
+      "email": "bitaatutu2003@gmail.com",
+      "password": "$2a$10$roC8Wow75YPdIhPz/KCd0eTsbFGBP8JFGtghUj0XR1L8ML6h8MbhO",
+      "address": "Zona verde 3",
+      "latitude": 15,
+      "longitude": 123,
+      "hours": "Segunda a Sábado, 07:00 às 18:00",
+      "status": "active",
+      "verified": 1,
+      "created_at": "2026-09-12T18:51:32.283Z"
     }
   ],
   "schedules": [
@@ -175,6 +190,12 @@
       "agency_id": 1788944012732,
       "status": "approved",
       "created_at": "2026-09-09T08:53:32.732Z"
+    },
+    {
+      "id": 1789239092282,
+      "agency_id": 1789239092282,
+      "status": "approved",
+      "created_at": "2026-09-12T18:51:32.283Z"
     }
   ]
 }
