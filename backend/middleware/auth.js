@@ -19,7 +19,9 @@ function authenticateToken(req, res, next) {
 
 function requireRole(...roles) {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    const normalizedRole = String(req.user?.role || '').toLowerCase();
+    const allowed = roles.map((role) => String(role).toLowerCase());
+    if (!req.user || !allowed.includes(normalizedRole)) {
       return res.status(403).json({ message: 'Acesso negado.' });
     }
     return next();

@@ -3,9 +3,18 @@ const bcrypt = require('bcryptjs');
 const { calculateDistanceKm } = require('../services/searchService');
 const { saveDatabase } = db;
 
+function normalizeAgencyStatus(value) {
+  const normalized = String(value || 'PENDING').toUpperCase();
+  if (normalized === 'ACTIVE') return 'APPROVED';
+  if (['APPROVED', 'PENDING', 'REJECTED', 'SUSPENDED'].includes(normalized)) {
+    return normalized;
+  }
+  return 'PENDING';
+}
+
 function publicAgency(agency) {
   const { password, ...safeAgency } = agency;
-  return safeAgency;
+  return { ...safeAgency, status: normalizeAgencyStatus(safeAgency.status) };
 }
 
 function getNearbyAgencies(req, res) {
@@ -18,7 +27,7 @@ function getNearbyAgencies(req, res) {
     return res.status(400).json({ message: 'Localização do cliente é obrigatória.' });
   }
 
-  const matches = db.agencies.filter((agency) => agency.status === 'active' && agency.verified === 1);
+  const matches = db.agencies.filter((agency) => normalizeAgencyStatus(agency.status) === 'APPROVED' && agency.verified === 1);
   const results = matches.flatMap((agency) => {
     const distance = Number(calculateDistanceKm(lat, lon, agency.latitude, agency.longitude).toFixed(2));
     if (distance > radius) return [];
@@ -66,7 +75,7 @@ function createAgency(req, res) {
     return res.status(400).json({ message: 'Preencha todos os campos obrigatórios.' });
   }
 
-  const exists = db.agencies.some((agency) => agency.email === email);
+  const exists = db.agencies.some((agency) => String(agency.email || '').trim().toLowerCase() === String(email).trim().toLowerCase());
   if (exists) {
     return res.status(400).json({ message: 'Essa agência já está cadastrada.' });
   }
@@ -84,13 +93,13 @@ function createAgency(req, res) {
     latitude: Number(latitude),
     longitude: Number(longitude),
     hours: hours || '',
-    status: 'pending',
+    status: 'PENDING',
     verified: 0,
     created_at: new Date().toISOString()
   };
 
   db.agencies.push(newAgency);
-  db.agency_requests.push({ id: agencyId, agency_id: agencyId, status: 'pending', created_at: newAgency.created_at });
+  db.agency_requests.push({ id: agencyId, agency_id: agencyId, status: 'PENDING', created_at: newAgency.created_at });
 
   if (Array.isArray(hours)) {
     hours.forEach((schedule) => {
@@ -106,7 +115,7 @@ function createAgency(req, res) {
 
   saveDatabase();
 
-  return res.status(201).json({ message: 'Agência registrada com sucesso. Aguardando aprovação.', agencyId });
+  return res.status(201).json({ message: 'Cadastro realizado com sucesso. Sua agência está aguardando aprovação do administrador.', agencyId });
 }
 
 function listBottleTypes(req, res) {

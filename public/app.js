@@ -48,13 +48,47 @@ function render() {
         <header class="topbar">
           <div class="brand">Gas<span>Finder</span></div>
           <nav class="nav">
-            <button id="agencyNavBtn">Agência</button>
-            <button id="adminNavBtn">Admin</button>
+            <button id="agencyNavBtn">🏪 Agência</button>
+          </nav>
+        </header>
+
+        <section class="hero choice-hero">
+          <p class="eyebrow">GAS FINDER</p>
+          <h1>Encontre gás antes de sair de casa.</h1>
+          <p class="subtitle">Você é?</p>
+
+          <div class="choice-grid">
+            <button class="choice-btn primary-btn" id="clientChoiceBtn">
+              <span class="choice-icon">👤</span>
+              <span>CLIENTE</span>
+            </button>
+            <button class="choice-btn secondary-btn" id="agencyChoiceBtn">
+              <span class="choice-icon">🏪</span>
+              <span>AGÊNCIA</span>
+            </button>
+          </div>
+        </section>
+      </div>
+    `;
+
+    document.getElementById('clientChoiceBtn').addEventListener('click', () => { state.screen = 'client-panel'; render(); });
+    document.getElementById('agencyChoiceBtn').addEventListener('click', () => { state.screen = 'agency-login'; render(); });
+    document.getElementById('agencyNavBtn').addEventListener('click', () => { state.screen = 'agency-login'; render(); });
+    return;
+  }
+
+  if (state.screen === 'client-panel') {
+    app.innerHTML = `
+      <div class="container">
+        <header class="topbar">
+          <div class="brand">Gas<span>Finder</span></div>
+          <nav class="nav">
+            <button id="backHomeBtn">Voltar</button>
           </nav>
         </header>
 
         <section class="hero">
-          <h1>Encontre a casa/agência de gás perto de você.</h1>
+          <h1>Encontre a botija certa perto de você.</h1>
           <p>Veja quais agências têm o gás que você procura antes de sair de casa.</p>
           <div class="hero-actions">
             <button class="primary-btn" id="findGasBtn">Encontrar gás perto de mim</button>
@@ -81,6 +115,7 @@ function render() {
       </div>
     `;
 
+    document.getElementById('backHomeBtn').addEventListener('click', () => { state.screen = 'home'; render(); });
     document.getElementById('findGasBtn').addEventListener('click', handleFindGas);
     document.getElementById('manualLocationBtn').addEventListener('click', () => {
       document.getElementById('searchPanel').classList.remove('hidden');
@@ -93,8 +128,6 @@ function render() {
         fetchNearbyAgencies();
       }
     });
-    document.getElementById('agencyNavBtn').addEventListener('click', () => { state.screen = 'agency-login'; render(); });
-    document.getElementById('adminNavBtn').addEventListener('click', () => { state.screen = 'admin-login'; render(); });
     renderBottleOptions();
     return;
   }
@@ -229,7 +262,7 @@ function renderAccessShell(title, subtitle, content) {
 }
 
 function renderAgencyLogin() {
-  renderAccessShell('Acesso da agência', 'Entre para atualizar os seus dados e a disponibilidade.', `<div class="form-grid"><input id="agencyEmail" type="email" placeholder="Email" /><input id="agencyPassword" type="password" placeholder="Palavra-passe" /><button class="primary-btn" id="agencyLoginBtn">Entrar</button><button class="ghost-btn" id="agencyRegisterBtn">Solicitar cadastro</button></div>`);
+  renderAccessShell('Área da Agência', 'Entre para atualizar os seus dados e a disponibilidade.', `<div class="form-grid"><label>Email<input id="agencyEmail" type="email" placeholder="Email" /></label><label>Palavra-passe<input id="agencyPassword" type="password" placeholder="Palavra-passe" /></label><button class="primary-btn" id="agencyLoginBtn">ENTRAR</button><p class="muted-copy">Ainda não possui uma conta?</p><button class="ghost-btn" id="agencyRegisterBtn">CADASTRAR AGÊNCIA</button></div>`);
   document.getElementById('agencyRegisterBtn').addEventListener('click', () => { state.screen = 'agency-register'; render(); });
   document.getElementById('agencyLoginBtn').addEventListener('click', async () => {
     try {
@@ -241,12 +274,12 @@ function renderAgencyLogin() {
 }
 
 function renderAgencyRegister() {
-  renderAccessShell('Solicitar cadastro de agência', 'A agência ficará pendente até a aprovação do administrador.', `<div class="form-grid"><input id="registerName" placeholder="Nome da agência" /><input id="registerResponsible" placeholder="Nome do responsável" /><input id="registerEmail" type="email" placeholder="Email" /><input id="registerPhone" placeholder="Telefone" /><input id="registerPassword" type="password" placeholder="Palavra-passe" /><input id="registerAddress" placeholder="Endereço" /><input id="registerLat" placeholder="Latitude" /><input id="registerLng" placeholder="Longitude" /><input id="registerHours" placeholder="Horário de funcionamento" value="Segunda a Sábado, 07:00 às 18:00" /><button class="primary-btn" id="registerAgencyBtn">Enviar solicitação</button></div>`);
+  renderAccessShell('Cadastro da Agência', 'A agência ficará pendente até a aprovação do administrador.', `<div class="form-grid"><input id="registerName" placeholder="Nome da agência" /><input id="registerResponsible" placeholder="Nome do responsável" /><input id="registerPhone" placeholder="Número de telefone" /><input id="registerEmail" type="email" placeholder="Email" /><input id="registerPassword" type="password" placeholder="Palavra-passe" /><input id="registerAddress" placeholder="Endereço" /><input id="registerLat" placeholder="Localização atual / Latitude" /><input id="registerLng" placeholder="Localização atual / Longitude" /><input id="registerHours" placeholder="Horário de funcionamento" value="Segunda a Sábado, 07:00 às 18:00" /><button class="primary-btn" id="registerAgencyBtn">CADASTRAR AGÊNCIA</button></div>`);
   document.getElementById('registerAgencyBtn').addEventListener('click', async () => {
     const value = (id) => document.getElementById(id).value.trim();
     try {
       await apiRequest('/agencias', { method: 'POST', body: JSON.stringify({ name: value('registerName'), responsible: value('registerResponsible'), email: value('registerEmail'), phone: value('registerPhone'), password: value('registerPassword'), address: value('registerAddress'), latitude: value('registerLat'), longitude: value('registerLng'), hours: value('registerHours') }) });
-      alert('Solicitação enviada. Aguarde a aprovação do administrador.'); state.screen = 'agency-login'; render();
+      alert('Cadastro realizado com sucesso. Sua agência está aguardando aprovação do administrador.'); state.screen = 'agency-login'; render();
     } catch (error) { alert(error.message); }
   });
 }
@@ -393,7 +426,7 @@ async function renderAgencyDetail() {
           <h2>${agency.name}</h2>
           <div class="rating">★★★★★ 4.6</div>
         </div>
-        <span class="status ${agency.status === 'active' ? 'open' : 'closed'}">${agency.status === 'active' ? 'Aberta' : 'Fechada'}</span>
+        <span class="status ${agency.status === 'APPROVED' ? 'open' : 'closed'}">${agency.status === 'APPROVED' ? 'Aberta' : 'Fechada'}</span>
       </div>
 
       <div class="detailed-list">
@@ -501,7 +534,7 @@ async function renderAdminDashboard() {
       </div>
       <div class="card" style="margin-top: 18px;">
         <h3>Agências</h3>
-        ${agencies.map((agency) => `<div class="inventory-item" style="margin-top: 8px;"><span><strong>${agency.name}</strong><br>${agency.address} · ${agency.phone}<br><small>${agency.status} · ${agency.availability.filter((item) => Number(item.available) === 1).map((item) => item.bottle_name).join(', ') || 'Sem gás disponível'}</small></span><span class="card-actions">${agency.status === 'pending' ? `<button class="ghost-btn" data-approve="${agency.id}">Aprovar</button><button class="ghost-btn" data-reject="${agency.id}">Rejeitar</button>` : ''}${agency.status === 'active' ? `<button class="ghost-btn" data-suspend="${agency.id}">Desativar</button>` : ''}<button class="ghost-btn" data-delete="${agency.id}">Excluir</button></span></div>`).join('')}
+        ${agencies.map((agency) => `<div class="inventory-item" style="margin-top: 8px;"><span><strong>${agency.name}</strong><br>${agency.address} · ${agency.phone}<br><small>${String(agency.status || 'PENDING')} · ${agency.availability.filter((item) => Number(item.available) === 1).map((item) => item.bottle_name).join(', ') || 'Sem gás disponível'}</small></span><span class="card-actions">${agency.status === 'PENDING' ? `<button class="ghost-btn" data-approve="${agency.id}">Aprovar</button><button class="ghost-btn" data-reject="${agency.id}">Rejeitar</button>` : ''}${agency.status === 'APPROVED' ? `<button class="ghost-btn" data-suspend="${agency.id}">Desativar</button>` : ''}<button class="ghost-btn" data-delete="${agency.id}">Excluir</button></span></div>`).join('')}
       </div>
     `;
 
@@ -545,5 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
   else if (route === '/agencia') state.screen = 'agency-login';
   else if (route === '/admin/dashboard' || route === '/admin/agencias' || route === '/admin/solicitacoes') state.screen = 'admin-dashboard';
   else if (route === '/admin') state.screen = 'admin-login';
+  if (!['agency-login', 'agency-register', 'admin-login', 'admin-dashboard', 'agency-dashboard', 'client-panel', 'results', 'agency-detail', 'home'].includes(state.screen)) {
+    state.screen = 'home';
+  }
   render();
 });

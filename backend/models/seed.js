@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
-const { saveDatabase } = db;
+const { saveDatabase, normalizeAgencyStatus } = db;
 
 function insertSeedData() {
   if (db.users.length === 0) {
@@ -18,11 +18,17 @@ function insertSeedData() {
       address: 'Bairro Central, Luanda',
       latitude: -8.84,
       longitude: 13.23,
-      status: 'active',
+      status: 'APPROVED',
       verified: 1,
       created_at: new Date().toISOString()
     });
   }
+
+  db.agencies = db.agencies.map((agency) => ({
+    ...agency,
+    status: normalizeAgencyStatus(agency.status),
+    verified: agency.status === 'APPROVED' || agency.verified === 1 ? 1 : 0
+  }));
 
   if (db.bottles.length === 0) {
     db.bottles.push(

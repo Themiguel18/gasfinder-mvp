@@ -11,17 +11,37 @@ function signToken(user) {
   );
 }
 
+function normalizeAgencyStatus(value) {
+  const normalized = String(value || 'PENDING').toUpperCase();
+  if (normalized === 'ACTIVE') return 'APPROVED';
+  if (['APPROVED', 'PENDING', 'REJECTED', 'SUSPENDED'].includes(normalized)) {
+    return normalized;
+  }
+  return 'PENDING';
+}
+
 async function findLoginUser(email, password, userRows = db.users, agencyRows = db.agencies) {
-  const user = userRows.find((item) => item.email === email) || null;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail || !password) return null;
+
+  const user = userRows.find((item) => String(item.email || '').trim().toLowerCase() === normalizedEmail) || null;
   if (user) {
     const valid = await bcrypt.compare(password, user.password);
-    if (valid) return { ...user, role: user.role || 'client' };
+    if (valid) return { ...user, role: (user.role || 'client').toLowerCase() };
   }
 
-  const agency = agencyRows.find((item) => item.email === email) || null;
-  if (agency && agency.status === 'active' && agency.verified === 1) {
+  const agency = agencyRows.find((item) => String(item.email || '').trim().toLowerCase() === normalizedEmail) || null;
+  if (agency) {
     const valid = await bcrypt.compare(password, agency.password);
-    if (valid) return { ...agency, role: 'agency', name: agency.name || agency.responsible || 'Agência' };
+    if (!valid) return null;
+
+    const status = normalizeAgencyStatus(agency.status);
+    return {
+      ...agency,
+      role: 'agency',
+      status,
+      name: agency.name || agency.responsible || 'Agência'
+    };
   }
 
   return null;
@@ -34,7 +54,7 @@ async function register(req, res) {
     return res.status(400).json({ message: 'Nome, email e senha são obrigatórios.' });
   }
 
-  const userExists = db.users.some((user) => user.email === email) || db.agencies.some((agency) => agency.email === email);
+  const userExists = db.users.some((user) => String(user.email || '').trim().toLowerCase() === String(email).trim().toLowerCase()) || db.agencies.some((agency) => String(agency.email || '').trim().toLowerCase() === String(email).trim().toLowerCase());
   if (userExists) {
     return res.status(400).json({ message: 'Este email já está em uso.' });
   }
@@ -48,22 +68,37 @@ async function register(req, res) {
   return res.status(201).json({ token, user: { id: newUser.id, name, email, role } });
 }
 
-async function login(req, res) {
-  const { email, password } = req.body;
+async function login(req, res, injectedUserRows = null, injectedAgencyRows = null) {
+  const { email, password } = req.body || {};
+  const userRows = Array.isArray(injectedUserRows) ? injectedUserRows : db.users;
+  const agencyRows = Array.isArray(injectedAgencyRows) ? injectedAgencyRows : db.agencies;
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Email e senha são obrigatórios.' });
   }
 
-  const matched = await findLoginUser(email, password, db.users, db.agencies);
+  const matched = await findLoginUser(email, password, userRows, agencyRows);
   if (!matched) {
-    return res.status(401).json({ message: 'Credenciais inválidas.' });
+    return res.status(401).json({ message: 'Email ou palavra-passe incorretos.' });
+  }
+
+  if (matched.role === 'agency') {
+    const status = normalizeAgencyStatus(matched.status);
+    if (status === 'PENDING') {
+      return res.status(403).json({ message: 'Sua agência ainda está aguardando aprovação do administrador.' });
+    }
+    if (status === 'SUSPENDED') {
+      return res.status(403).json({ message: 'Esta conta de agência está temporariamente suspensa.' });
+    }
+    if (status === 'REJECTED') {
+      return res.status(403).json({ message: 'Sua agência foi rejeitada e não pode acessar o painel.' });
+    }
   }
 
   const token = signToken(matched);
   return res.json({
     token,
-    user: { id: matched.id, name: matched.name, email: matched.email, role: matched.role }
+    user: { id: matched.id, name: matched.name, email: matched.email, role: matched.role, status: normalizeAgencyStatus(matched.status) }
   });
 }
 

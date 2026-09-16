@@ -5,6 +5,15 @@ const path = require('path');
 const dataDirectory = path.join(__dirname, '..', '..', 'data');
 const dataFile = path.join(dataDirectory, 'gasfinder.json');
 
+const normalizeAgencyStatus = (value) => {
+  const raw = String(value || 'PENDING').toUpperCase();
+  if (raw === 'ACTIVE') return 'APPROVED';
+  if (raw === 'APPROVED' || raw === 'PENDING' || raw === 'REJECTED' || raw === 'SUSPENDED') {
+    return raw;
+  }
+  return 'PENDING';
+};
+
 const bottles = [
   { id: 1, name: 'Botija Azul', color: 'blue', weight: '18kg', status: 'active' },
   { id: 2, name: 'Botija Laranja', color: 'orange', weight: '13kg', status: 'active' },
@@ -27,7 +36,7 @@ const agencies = [
     address: 'Bairro Central, Luanda',
     latitude: -8.84,
     longitude: 13.23,
-    status: 'active',
+    status: 'APPROVED',
     verified: 1,
     created_at: new Date().toISOString()
   }
@@ -60,7 +69,8 @@ const initialDatabase = {
 function loadDatabase() {
   try {
     if (fs.existsSync(dataFile)) {
-      return { ...initialDatabase, ...JSON.parse(fs.readFileSync(dataFile, 'utf8')) };
+      const fileData = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+      return { ...initialDatabase, ...fileData };
     }
   } catch (error) {
     console.error('Não foi possível ler o banco local:', error.message);
@@ -71,6 +81,12 @@ function loadDatabase() {
 
 const database = loadDatabase();
 
+database.agencies = (database.agencies || []).map((agency) => ({
+  ...agency,
+  status: normalizeAgencyStatus(agency.status),
+  verified: agency.status === 'APPROVED' || agency.verified === 1 ? 1 : 0
+}));
+
 function saveDatabase() {
   fs.mkdirSync(dataDirectory, { recursive: true });
   const temporaryFile = `${dataFile}.tmp`;
@@ -80,3 +96,4 @@ function saveDatabase() {
 
 module.exports = database;
 module.exports.saveDatabase = saveDatabase;
+module.exports.normalizeAgencyStatus = normalizeAgencyStatus;
