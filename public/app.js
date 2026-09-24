@@ -3,6 +3,7 @@ const state = {
   bottle: 'Botija Azul',
   location: null,
   results: [],
+  resultMessage: '',
   radius: 5,
   agencyId: null,
   agency: null,
@@ -344,8 +345,10 @@ async function fetchNearbyAgencies() {
   const { latitude, longitude } = state.location;
 
   try {
-    const payload = await apiRequest(`/agencias/proximas?latitude=${latitude}&longitude=${longitude}&radius=${state.radius}&bottleName=${encodeURIComponent(state.bottle)}`);
+    const bottleType = state.bottle === 'Botija Azul' ? 'azul' : state.bottle === 'Botija Laranja' ? 'laranja' : 'todas';
+    const payload = await apiRequest(`/agencias/proximas?latitude=${latitude}&longitude=${longitude}&radius=${state.radius}&tipo_botija=${bottleType}`);
     state.results = payload.results || [];
+    state.resultMessage = payload.message || '';
     state.radius = payload.radius || state.radius;
     state.screen = 'results';
     render();
@@ -359,7 +362,7 @@ function renderResultsList() {
   if (!list) return;
 
   if (!state.results.length) {
-    list.innerHTML = `<div class="card"><p>Nenhuma agência encontrada em ${state.radius} km.</p><button class="primary-btn" id="expandSearchBtn">Pesquisar em ${Math.min(state.radius * 2, 50)} km</button></div>`;
+    list.innerHTML = `<div class="card"><p>${state.resultMessage || `Nenhuma agência encontrada em ${state.radius} km.`}</p><button class="primary-btn" id="expandSearchBtn">Pesquisar em ${Math.min(state.radius * 2, 50)} km</button></div>`;
     document.getElementById('expandSearchBtn').addEventListener('click', () => { state.radius = Math.min(state.radius * 2, 50); fetchNearbyAgencies(); });
     return;
   }

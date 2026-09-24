@@ -18,4 +18,30 @@ function buildSearchRadiusPlan() {
   return [2, 5, 10];
 }
 
-module.exports = { calculateDistanceKm, buildSearchRadiusPlan };
+function normalizeBottleType(value) {
+  const normalized = String(value || 'todas').trim().toLowerCase();
+  if (normalized.includes('azul')) return 'azul';
+  if (normalized.includes('laranja')) return 'laranja';
+  return 'todas';
+}
+
+function isBottleAvailable(entry) {
+  return entry.available === true || Number(entry.available) === 1;
+}
+
+function filterAvailableBottles(entries, bottleType) {
+  const normalizedType = normalizeBottleType(bottleType);
+
+  return entries.filter((entry) => {
+    if (!isBottleAvailable(entry)) return false;
+    if (normalizedType === 'todas') return true;
+    return normalizeBottleType(entry.bottleName) === normalizedType;
+  });
+}
+
+module.exports = {
+  calculateDistanceKm,
+  buildSearchRadiusPlan,
+  normalizeBottleType,
+  filterAvailableBottles
+};

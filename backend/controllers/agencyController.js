@@ -1,6 +1,6 @@
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
-const { calculateDistanceKm } = require('../services/searchService');
+const { calculateDistanceKm, filterAvailableBottles, normalizeBottleType } = require('../services/searchService');
 const { saveDatabase } = db;
 
 function normalizeAgencyStatus(value) {
@@ -18,7 +18,8 @@ function publicAgency(agency) {
 }
 
 function getNearbyAgencies(req, res) {
-  const { latitude, longitude, bottleName } = req.query;
+  const { latitude, longitude } = req.query;
+  const bottleType = normalizeBottleType(req.query.tipo_botija || req.query.bottleName);
   const radius = Math.min(Math.max(Number(req.query.radius) || 5, 1), 50);
   const lat = Number(latitude);
   const lon = Number(longitude);
@@ -31,7 +32,7 @@ function getNearbyAgencies(req, res) {
   const results = matches.flatMap((agency) => {
     const distance = Number(calculateDistanceKm(lat, lon, agency.latitude, agency.longitude).toFixed(2));
     if (distance > radius) return [];
-    return db.availability
+    const bottleResults = db.availability
       .filter((entry) => entry.agency_id === agency.id)
       .map((entry) => {
         const bottle = db.bottles.find((item) => item.id === entry.bottle_id);
@@ -44,11 +45,12 @@ function getNearbyAgencies(req, res) {
           updatedAt: entry.updated_at,
           distance
         };
-      })
-      .filter((item) => !bottleName || bottleName === 'Todas' || item.bottleName === bottleName);
-  }).sort((a, b) => Number(b.available) - Number(a.available) || a.distance - b.distance);
+      });
 
-  return res.json({ radius, message: results.length ? 'Resultados encontrados na área atual.' : `Nenhuma agência encontrada em ${radius} km.`, results });
+    return filterAvailableBottles(bottleResults, bottleType);
+  }).sort((a, b) => a.distance - b.distance || new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0) || Number(a.price || Infinity) - Number(b.price || Infinity));
+
+  return res.json({ radius, message: results.length ? 'Resultados encontrados na área atual.' : `Nenhuma agência com ${bottleType} disponível em ${radius} km.`, results });
 }
 
 function getAgencyById(req, res) {

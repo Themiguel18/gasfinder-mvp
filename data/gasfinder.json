@@ -146,16 +146,16 @@
       "agency_id": 1788855712839,
       "bottle_id": 1,
       "available": 1,
-      "price": 4500,
-      "updated_at": "2026-09-09T14:41:27.781Z"
+      "price": 4000,
+      "updated_at": "2026-09-24T18:40:52.648Z"
     },
     {
       "id": 1788857803587,
       "agency_id": 1788855712839,
       "bottle_id": 2,
-      "available": 1,
+      "available": 0,
       "price": 3000,
-      "updated_at": "2026-09-09T14:41:27.781Z"
+      "updated_at": "2026-09-24T18:40:52.649Z"
     },
     {
       "id": 1788944096657,
